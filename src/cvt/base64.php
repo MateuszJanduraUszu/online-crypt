@@ -1,10 +1,11 @@
-<?php
+<?php declare(string_types = 1);
 // base64.php
 
 // Copyright (c) Mateusz Jandura. All rights reserved
 // SPDX-License-Identifier: Apache-2.0
 
 namespace mjx {
+    require_once "core/formatted_string.php";
     require_once "cvt/utf8.php";
 
     const _Base64_table        = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -38,7 +39,7 @@ namespace mjx {
     }
 
     class base64 { // conversion between 8-bit and 6-bit code points
-        static function encode($_Data) : string {
+        static function encode(string $_Data) : string {
             $_Size = strlen($_Data);
             if ($_Size == 0) { // empty string, do nothing
                 return "";
@@ -77,7 +78,7 @@ namespace mjx {
             return $_Result;
         }
 
-        static function decode($_Data) : string {
+        static function decode(string $_Data) : string {
             $_Size = strlen($_Data);
             if ($_Size == 0) { // empty string, do nothing
                 return "";
@@ -122,11 +123,11 @@ namespace mjx {
             return $_Result;
         }
 
-        static function is_base64($_Data) : bool {
+        static function is_base64(string $_Data) : bool {
             return base64::_Is_base64($_Data, strlen($_Data));
         }
 
-        private static function _Is_base64($_Data, $_Size) : bool {
+        private static function _Is_base64(string $_Data, int $_Size) : bool {
             if ($_Size % 4 != 0) { // must be n*4
                 return false;
             }
@@ -138,6 +139,23 @@ namespace mjx {
             }
 
             return true;
+        }
+    }
+
+    class base64_string extends formatted_string { // stores string in a Base64 format
+        function __construct(string $_Str) {
+            $_Data = $this->_Convert($_Str); // assign converted string
+            parent::__construct($_Data->_Str, $_Data->_Size);
+        }
+
+        function assign(string $_New_str) : void {
+            $_Data = $this->_Convert($_New_str);
+            $this->_Assign($_Data->_Str, $_Data->_Size);
+        }
+        
+        private function _Convert(string $_Str) : _String_and_size {
+            $_Converted = base64::encode($_Str);
+            return new _String_and_size($_Converted, strlen($_Converted));
         }
     }
 } // namespace mjx

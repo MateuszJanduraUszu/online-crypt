@@ -1,11 +1,13 @@
-<?php
+<?php declare(strict_types = 1);
 // hex.php
 
 // Copyright (c) Mateusz Jandura. All rights reserved
 // SPDX-License-Identifier: Apache-2.0
 
 namespace mjx {
-    function _Get_padding_size($_Str) {
+    require_once "core/formatted_string.php";
+
+    function _Get_padding_size(string $_Str) : int {
         $_As_array = str_split($_Str);
         $_Size     = 0;
         foreach ($_As_array as $_Ch) {
@@ -24,22 +26,22 @@ namespace mjx {
         return dechex(ord($_Code_point));
     }
 
-    function _Code_point_from_hex_chunk($_Chunk) : string {
+    function _Code_point_from_hex_chunk(string $_Chunk) : string {
         // convert a 2-byte hexadecimal chunk to a 1-byte code point
         return chr(hexdec($_Chunk));
     }
 
     class hex {
-        static function encode($_Data) : string {
+        static function encode(string $_Data) : string {
             return hex::_Encode($_Data, strlen($_Data), " ", 0);
         }
 
-        static function encode_aligned($_Data, $_Count) : string {
+        static function encode_aligned(string $_Data, int $_Count) : string {
             $_As_hex = hex::_Encode($_Data, strlen($_Data), "0", $_Count);
             return hex::_Align_to($_As_hex, $_Count, "0");
         }
 
-        static function decode($_Data) : string {
+        static function decode(string $_Data) : string {
             $_Size = strlen($_Data);
             if ($_Size == 0) { // empty string, do nothing
                 return "";
@@ -58,7 +60,8 @@ namespace mjx {
             return $_Result;
         }
 
-        private static function _Encode($_Data, $_Data_size, $_Padding, $_Padding_size) : string {
+        private static function _Encode(
+            string $_Data, int $_Data_size, string $_Padding, int $_Padding_size) : string {
             if ($_Data_size == 0) { // empty string, do nothing
                 return "";
             }
@@ -71,9 +74,26 @@ namespace mjx {
             return $_Result;
         }
         
-        private static function _Align_to($_Str, $_Size, $_Padding) {
+        private static function _Align_to(string $_Str, int $_Size, string $_Padding) {
             // aligns _Str to _Padding bytes
             return str_pad($_Str, $_Size, $_Padding, STR_PAD_LEFT);
+        }
+    }
+
+    class hex_string extends formatted_string { // stores string in a hexadecimal format
+        function __construct(string $_Str) {
+            $_Data = $this->_Convert($_Str); // assign converted string
+            parent::__construct($_Data->_Str, $_Data->_Size);
+        }
+
+        function assign(string $_New_str) : void {
+            $_Data = $this->_Convert($_New_str);
+            $this->_Assign($_Data->_Str, $_Data->_Size);
+        }
+
+        private function _Convert(string $_Str) : _String_and_size {
+            $_Converted = hex::encode($_Str);
+            return new _String_and_size($_Converted, strlen($_Converted));
         }
     }
 } // namespace mjx
