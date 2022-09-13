@@ -33,12 +33,12 @@ namespace mjx {
 
     class hex {
         static function encode(string $_Data) : string {
-            return hex::_Encode($_Data, strlen($_Data), " ", 0);
+            return self::_Encode($_Data, strlen($_Data), " ", 0);
         }
 
         static function encode_aligned(string $_Data, int $_Count) : string {
-            $_As_hex = hex::_Encode($_Data, strlen($_Data), "0", $_Count);
-            return hex::_Align_to($_As_hex, $_Count, "0");
+            $_As_hex = self::_Encode($_Data, strlen($_Data), "0", $_Count);
+            return self::_Align_to($_As_hex, $_Count, "0");
         }
 
         static function decode(string $_Data) : string {

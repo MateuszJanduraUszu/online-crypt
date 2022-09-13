@@ -84,7 +84,7 @@ namespace mjx {
                 return "";
             }
 
-            if (!base64::_Is_base64($_Data, $_Size)) { // invalid data
+            if (!self::_Is_base64($_Data, $_Size)) { // invalid data
                 return "";
             }
 
@@ -124,7 +124,7 @@ namespace mjx {
         }
 
         static function is_base64(string $_Data) : bool {
-            return base64::_Is_base64($_Data, strlen($_Data));
+            return self::_Is_base64($_Data, strlen($_Data));
         }
 
         private static function _Is_base64(string $_Data, int $_Size) : bool {
