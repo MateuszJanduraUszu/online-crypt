@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types = 1);
 // fnv32.php
 
 // Copyright (c) Mateusz Jandura. All rights reserved
@@ -10,7 +10,7 @@ namespace mjx {
         const _Prime        = 0x01000193;
     }
 
-    function fnv132($_Data) : int {
+    function fnv132(string $_Data) : int {
         // see https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function for details
         $_As_array = str_split($_Data); // for iteration
         $_Result   = _Fnv32_params::_Offset_basis;
@@ -23,7 +23,7 @@ namespace mjx {
         return $_Result;
     }
 
-    function fnv1a32($_Data) : int {
+    function fnv1a32(string $_Data) : int {
         // see https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function for details
         $_As_array = str_split($_Data); // for iteration
         $_Result   = _Fnv32_params::_Offset_basis;
