@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types = 1);
 // token.php
 
 // Copyright (c) Mateusz Jandura. All rights reserved
