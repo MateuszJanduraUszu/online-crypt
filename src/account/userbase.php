@@ -5,34 +5,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 namespace mjx {
-    require_once "account/token.php";
-    require_once "cvt/hex.php";
-    require_once "hash/md5.php";
+    $_Root_path = dirname(__FILE__, 2);
+    require_once $_Root_path . "/account/token.php";
+    require_once $_Root_path . "/cvt/hex.php";
+    require_once $_Root_path . "/hash/md5.php";
 
     use mysqli;
-    use mysqli_result;
-
-    class _Query_invoker { // invokes the mysqli_query() function multiple times
-        function __construct(mysqli $_Handle, string $_Command) {
-            $this->_Myhandle  = $_Handle;
-            $this->_Mycommand = $_Command;
-        }        
-
-        function _Invoke() : mysqli_result | bool {
-            return $this->_Myhandle->query($this->_Mycommand);
-        }
-
-        private mysqli $_Myhandle;
-        private string $_Mycommand;
-    }
 
     class account_data {
-        function __construct() {
-            $this->login    = "";
-            $this->password = "";
-            $this->active   = false;
-            $this->token    = new token;
-            $this->salt     = "";
+        function __construct(string $_Login = "", string $_Password = "", bool $_Active = false,
+            token $_Token = new token(), string $_Salt = "") {
+            $this->login    = $_Login;
+            $this->password = $_Password;
+            $this->active   = $_Active;
+            $this->token    = new token($_Token->value());
+            $this->salt     = $_Salt;
         }
 
         public string $login;
@@ -43,7 +30,16 @@ namespace mjx {
     }
 
     class userbase {
-        function __construct() {
+        static function current() : userbase {
+            static $_Obj = new userbase;
+            if (!$_Obj->is_open()) { // open after initialization
+                $_Obj->open();
+            }
+
+            return $_Obj;
+        } 
+        
+        private function __construct() {
             $this->_Myok    = false;
             $this->_Mytable = "";
         }
@@ -53,11 +49,6 @@ namespace mjx {
                 $this->close();
             }
         }
-
-        static function current() : userbase {
-            static $_Obj = new userbase;
-            return $_Obj;
-        } 
 
         function open(string $_Name = "online_crypt", string $_Table = "users",
             string $_Host = "localhost", string $_Login = "root", string $_Password = null) : bool {
@@ -98,7 +89,7 @@ namespace mjx {
                 return false;
             }
 
-            $_Command = "SELECT * FROM " . $this->_Mytable . " WHERE login = \"" . $_Login . "\";";
+            $_Command = 'SELECT * FROM ' . $this->_Mytable . ' WHERE BINARY login = "' . $_Login . '";';
             return $this->_Myhandle->query($_Command)->num_rows > 0;
         }
 
@@ -107,47 +98,49 @@ namespace mjx {
                 return null;
             }
 
-            $_Command       = "SELECT * FROM " . $this->_Mytable . " WHERE login = \"" . $_Login . "\";";
-            $_Invoker       = new _Query_invoker($this->_Myhandle, $_Command);
-            $_Invoke_result = $_Invoker->_Invoke();
-            if ($_Invoke_result->num_rows == 0) { // use not found
+            $_Query = $this->_Myhandle->query(
+                'SELECT * FROM ' . $this->_Mytable . ' WHERE BINARY login = "' . $_Login . '";');
+            if ($_Query->num_rows == 0) { // account not found
                 return null;
             }
 
-            $_Result           = new account_data;
-            $_Result->login    = $_Login;
-            $_Result->password = $_Invoke_result->fetch_column(1);
-            $_Invoke_result    = $_Invoker->_Invoke();
-            $_Result->active   = boolval($_Invoke_result->fetch_column(2));
-            $_Invoke_result    = $_Invoker->_Invoke();
-            $_Result->token->reset(intval($_Invoke_result->fetch_column(3)));
-            $_Invoke_result = $_Invoker->_Invoke();
-            $_Result->salt  = $_Invoke_result->fetch_column(4);
-            return $_Result;
+            $_Row = $_Query->fetch_row();
+            return new account_data(
+                $_Row[0], $_Row[1], boolval($_Row[2]), new token(intval($_Row[3])), $_Row[4]);
         }
 
-        function create_account(
-            string $_Login, string $_Password, bool $_Active, token $_Token, string $_Salt = null) : bool {
-            if ($this->has_account($_Login)) { // account already exists
-                return false;
+        function generate_unique_salt(int $_Size = 16) : string | null {
+            if (!$this->is_open()) { // no userbase is open
+                return null;
             }
 
-            if ($_Salt == null) { // generate a new salt
-                $_Salts = $this->_Load_all_salts();
-                for (;;) { // keep generating until the salt is unique
-                    $_Salt = generate_salt();
-                    if (!in_array($_Salt, $_Salts)) { // generated unique salt, use it
-                        break;
-                    }
+            $_Salts = $this->_Load_all_salts();
+            $_Salt  = "";
+            for (;;) { // keep generating until the salt is unique
+                $_Salt = generate_salt($_Size);
+                if (!in_array(hex::encode($_Salt), $_Salts)) { // generated unique salt, use it
+                    break;
                 }
             }
 
-            $_Password = md5($_Password, $_Salt, 16); // default salt size (16 bytes)
-            $_Salt     = hex::encode($_Salt); // store as a hexadecimal string
-            $_Command  = "INSERT INTO " . $this->_Mytable . " (login, password, active, token, salt) values (\""
-                . $_Login . "\", \"" . $_Password . "\", " . $_Active . ", "
-                    . $_Token->to_string() . ", \"" . $_Salt . "\");";
-            return $this->_Myhandle->query($_Command);
+            return $_Salt;
+        }
+
+        function create_account(account_data $_Data) : bool {
+            if ($this->has_account($_Data->login)) { // account already exists
+                return false;
+            }
+
+            if ($_Data->salt == null) { // generate a new salt
+                $_Data->salt = $this->generate_unique_salt();
+            }
+
+            $_Data->password = md5($_Data->password, $_Data->salt, 16); // default salt size (16 bytes)
+            $_Data->salt     = hex::encode($_Data->salt); // store as a hexadecimal string
+            return $this->_Myhandle->query(
+                'INSERT INTO ' . $this->_Mytable . ' (login, password, active, token, salt) VALUES ("'
+                    . $_Data->login . '", "' . $_Data->password . '", ' . $_Data->active . ', '
+                        . $_Data->token->to_string() . ', "' . $_Data->salt . '");');
         }
 
         function delete_account(string $_Login) : bool {
@@ -156,7 +149,7 @@ namespace mjx {
             }
 
             return $this->_Myhandle->query(
-                "DELETE FROM " . $this->_Mytable . " WHERE login = \"" . $_Login . "\";");
+                'DELETE FROM ' . $this->_Mytable . ' WHERE BINARY login = "' . $_Login . '";');
         }
 
         function change_account_login(string $_Login, string $_New_login) : bool {
@@ -167,10 +160,10 @@ namespace mjx {
             if ($_Login == $_New_login) { // nothing has changed, do nothing
                 return true;
             }
-
-            $_Command = "UPDATE " . $this->_Mytable . " SET login = \"" . $_New_login
-                . "\" WHERE login = \"" . $_Login . "\";";
-            return $this->_Myhandle->query($_Command);    
+ 
+            return $this->_Myhandle->query(
+                'UPDATE ' . $this->_Mytable . ' SET login = "' . $_New_login
+                    . '" WHERE BINARY login = "' . $_Login . '";');
         }
 
         function change_account_password(string $_Login, string $_New_password) : bool {
@@ -184,10 +177,10 @@ namespace mjx {
             if ($_New_password == $_Data->password) { // nothing has changed, do nothing
                 return true;
             }
-
-            $_Command = "UPDATE " . $this->_Mytable . " SET password = \"" . $_New_password
-                . "\" WHERE login = \"" . $_Login . "\";";
-            return $this->_Myhandle->query($_Command);    
+ 
+            return $this->_Myhandle->query(
+                'UPDATE ' . $this->_Mytable . ' SET password = "' . $_New_password
+                    . '" WHERE BINARY login = "' . $_Login . '";');
         }
 
         function activate_account(string $_Login) : bool {
@@ -195,8 +188,8 @@ namespace mjx {
                 return false;
             }
 
-            return $this->_Myhandle->query("UPDATE " . $this->_Mytable
-                . " SET active = true WHERE login = \"" . $_Login . "\";");
+            return $this->_Myhandle->query(
+                'UPDATE ' . $this->_Mytable . ' SET active = true WHERE BINARY login = "' . $_Login . '";');
         }
 
         function deactivate_account(string $_Login) : bool {
@@ -204,17 +197,18 @@ namespace mjx {
                 return false;
             }
 
-            return $this->_Myhandle->query("UPDATE " . $this->_Mytable
-                . " SET active = false WHERE login = \"" . $_Login . "\";");
+            return $this->_Myhandle->query(
+                'UPDATE ' . $this->_Mytable . ' SET active = false WHERE BINARY login = "' . $_Login . '";');
         }
 
         function change_account_token(string $_Login, token $_New_token) : bool {
             if (!$this->has_account($_Login)) { // account not found
                 return false;
             }
-
-            return $this->_Myhandle->query("UPDATE " . $this->_Mytable
-                . " SET token = " . $_New_token->to_string() . " WHERE login = \"". $_Login . "\";");
+            
+            return $this->_Myhandle->query(
+                'UPDATE ' . $this->_Mytable . ' SET token = ' . $_New_token->to_string()
+                    . ' WHERE BINARY login = "' . $_Login . '";');
         }
 
         private function _Load_all_salts() : array {
@@ -222,15 +216,16 @@ namespace mjx {
                 return array();
             }
 
-            $_Query_result = $this->_Myhandle->query("SELECT salt FROM " . $this->_Mytable . ";");
-            $_Count        = $_Query_result->num_rows;
+            $_Query = $this->_Myhandle->query("SELECT salt FROM " . $this->_Mytable . " ORDER BY login;");
+            $_Count = $_Query->num_rows;
             if ($_Count == 0) { // salt not found
                 return array();
             }
 
             $_Result = array_fill(0, $_Count, "");
             for ($_Idx = 0; $_Idx < $_Count; ++$_Idx) {
-                $_Result[$_Idx] = implode($_Query_result->fetch_row());
+                $_Row           = $_Query->fetch_row();
+                $_Result[$_Idx] = $_Row[0];
             }
 
             return $_Result;
