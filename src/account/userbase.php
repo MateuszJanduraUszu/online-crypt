@@ -109,6 +109,28 @@ namespace mjx {
                 $_Row[0], $_Row[1], boolval($_Row[2]), new token(intval($_Row[3])), $_Row[4]);
         }
 
+        function load_all_accounts() : array {
+            if (!$this->is_open()) { // no userbase is open
+                return array();
+            }
+
+            $_Query = $this->_Myhandle->query('SELECT * FROM ' . $this->_Mytable . ' ORDER BY login;');
+            $_Count = $_Query->num_rows;
+            if ($_Count == 0) { // empty userbase
+                return array();
+            }
+
+            $_Result = array();
+            while ($_Count-- > 0) {
+                $_Row  = $_Query->fetch_row();
+                $_Data = new account_data(
+                    $_Row[0], $_Row[1], boolval($_Row[2]), new token(intval($_Row[3])), $_Row[4]);
+                array_push($_Result, $_Data);
+            }
+
+            return $_Result;
+        }
+
         function generate_unique_salt(int $_Size = 16) : string | null {
             if (!$this->is_open()) { // no userbase is open
                 return null;
