@@ -5,8 +5,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 namespace mjx {
-    require_once "core/formatted_string.php";
-    require_once "cvt/utf8.php";
+    $_Root_path = dirname(__FILE__, 2);
+    require_once $_Root_path . "/core/formatted_string.php";
+    require_once $_Root_path . "/cvt/utf8.php";
 
     const _Base64_table        = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
     const _Base64_table_size   = 65;

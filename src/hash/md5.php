@@ -5,8 +5,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 namespace mjx {
-    require_once "core/rotation.php";
-    require_once "hash/salt.php";
+    $_Root_path = dirname(__FILE__, 2);
+    require_once $_Root_path . "/core/rotation.php";
+    require_once $_Root_path . "/hash/salt.php";
 
     const _Md5_shift = array(
         7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5,
@@ -38,10 +39,11 @@ namespace mjx {
     }
 
     function md5(string $_Data, string $_Salt = null, int $_Salt_size = 0) : string {
+        // see https://en.wikipedia.org/wiki/MD5 and https://www.rfc-editor.org/rfc/rfc1321 for details
         if ($_Salt != null && $_Salt_size != 0) { // salt the data before the whole process
             $_Data = salt_data($_Data, $_Salt, $_Salt_size);
         }
-
+        
         list($_Ax, $_Bx, $_Cx, $_Dx) = [0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476]; // MD5 magic state
         $_Size_as_bits               = strlen($_Data) * 8;
         $_Data                       = _Append_md5_padding($_Data);
@@ -62,9 +64,9 @@ namespace mjx {
                 $_Words[$_Idx] = bindec($_Word);
             }
             
-            if (count($_Words) < 16) { // set bits for the last element (incomplete block)
-                $_Words[] = 0x00000000FFFFFFFF & $_Size_as_bits; // set lower 32 bits from the input size
-                $_Words[] = 0xFFFFFFFF00000000 & $_Size_as_bits; // set upper 32 bits from the input size
+            if (count($_Words) < 16) { // append 64-bit counter
+                $_Words[] = 0x00000000FFFFFFFF & $_Size_as_bits; // append lower 32 bits
+                $_Words[] = 0xFFFFFFFF00000000 & $_Size_as_bits; // append upper 32 bits
             }
 
             for ($_Iter = 0; $_Iter < 64; ++$_Iter) { // 4 rounds (16 steps each)

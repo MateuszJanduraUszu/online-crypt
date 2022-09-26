@@ -5,7 +5,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 namespace mjx {
-    require_once "core/formatted_string.php";
+    $_Root_path = dirname(__FILE__, 2);
+    require_once $_Root_path . "/core/formatted_string.php";
 
     function _Get_next_utf8_chunk_size($_Word) : int {
         $_Code_point = ord($_Word);
